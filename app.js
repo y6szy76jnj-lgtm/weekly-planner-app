@@ -241,11 +241,17 @@ button {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
   min-height: 420px;
   padding: 16px 14px 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .day-column.today {
   border-color: rgba(31, 36, 48, 0.8);
   box-shadow: 0 10px 20px rgba(32, 37, 42, 0.07);
+}
+
+.day-column.drag-over {
+  border-color: rgba(31, 36, 48, 0.5);
+  box-shadow: 0 0 0 4px rgba(31, 36, 48, 0.06);
 }
 
 .day-header {
@@ -294,6 +300,11 @@ button {
   display: grid;
   gap: 8px;
   box-shadow: 0 8px 14px rgba(30, 35, 45, 0.04);
+  cursor: grab;
+}
+
+.task-card.dragging {
+  opacity: 0.5;
 }
 
 .task-card.urgent {
@@ -360,6 +371,18 @@ button {
   line-height: 1.45;
   font-weight: 600;
   word-break: break-word;
+}
+
+.empty-slot {
+  border: 1px dashed rgba(27, 29, 32, 0.18);
+  border-radius: 12px;
+  color: rgba(27, 29, 32, 0.4);
+  display: grid;
+  place-items: center;
+  min-height: 72px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .add-task {
