@@ -1,531 +1,61 @@
-* {
-  box-sizing: border-box;
-}
+const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const KEY='weekly-planner-data';
+const COLORS_KEY='planner-colors';
+const DEFAULT_COLORS={urgent:'#d95852',normal:'#d9a73b',low:'#68a58d'};
 
-:root {
-  --bg: #f4efe8;
-  --panel: #fffdf9;
-  --sidebar: #1f2430;
-  --sidebar-soft: #2d3542;
-  --card: #ffffff;
-  --line: #e7e3db;
-  --ink: #1b1d20;
-  --muted: #66707d;
-  --urgent: #d95852;
-  --urgent-soft: #fff1f0;
-  --normal: #d9a73b;
-  --normal-soft: #fff7e8;
-  --low: #68a58d;
-  --low-soft: #ebfaf4;
-  --shadow: 0 20px 40px rgba(22, 28, 35, 0.08);
-}
+let state;
+try{state={...{tasks:[],notes:''},...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{state={tasks:[],notes:''}}
 
-html, body {
-  margin: 0;
-  min-height: 100%;
-  background: linear-gradient(180deg, #f4efe8 0%, #f7f4f1 100%);
-  color: var(--ink);
-  font-family: "Inter", sans-serif;
-}
+let colors=DEFAULT_COLORS;
+try{const saved=localStorage.getItem(COLORS_KEY);if(saved)colors={...DEFAULT_COLORS,...JSON.parse(saved)}}catch{colors=DEFAULT_COLORS}
 
-body {
-  min-height: 100vh;
-}
+function setColors(){Object.keys(colors).forEach(key=>{document.documentElement.style.setProperty(`--${key}`,colors[key])})
 
-button, input, select, textarea {
-  font: inherit;
-}
+  const urgentSoft=hexToRgba(colors.urgent,.08);const normalSoft=hexToRgba(colors.normal,.08);const lowSoft=hexToRgba(colors.low,.08);
+  document.documentElement.style.setProperty('--urgentSoft',urgentSoft);document.documentElement.style.setProperty('--normalSoft',normalSoft);document.documentElement.style.setProperty('--lowSoft',lowSoft)}
 
-button {
-  cursor: pointer;
-}
+function hexToRgba(hex,alpha=1){const r=parseInt(hex.slice(1,3),16);const g=parseInt(hex.slice(3,5),16);const b=parseInt(hex.slice(5,7),16);return `rgba(${r},${g},${b},${alpha})`}
 
-.page-shell {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  max-width: 1480px;
-  margin: 0 auto;
-  padding: 28px;
-  gap: 28px;
-}
+const $=selector=>document.querySelector(selector);
+const $$=selector=>document.querySelectorAll(selector);
+const grid=$('#plannerGrid'),dialog=$('#taskDialog'),form=$('#taskForm'),notes=$('#notes'),colorDialog=$('#colorDialog'),colorForm=$('#colorForm');
 
-.sidebar {
-  background: linear-gradient(180deg, var(--sidebar) 0%, var(--sidebar-soft) 100%);
-  border-radius: 28px;
-  color: white;
-  padding: 26px 22px;
-  box-shadow: var(--shadow);
-}
+function dates(){const today=new Date();const monday=new Date(today.getFullYear(),today.getMonth(),today.getDate()-((today.getDay()+6)%7));return DAYS.map((name,i)=>{const date=new Date(monday);date.setDate(monday.getDate()+i);return{name,date}})}
 
-.brand-block h1,
-.topbar h2,
-.notes-header h3,
-.dialog-header h3 {
-  margin: 0;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-}
+function esc(value=''){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 
-.brand-block h1 {
-  font-size: 2.2rem;
-  font-family: "Libre Baskerville", serif;
-}
+function save(){localStorage.setItem(KEY,JSON.stringify(state));$('#savedStatus').textContent='Saved locally'}
 
-.eyebrow {
-  margin: 0 0 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.13em;
-  font-size: 0.72rem;
-  font-weight: 700;
-  opacity: 0.8;
-}
+function saveColors(){localStorage.setItem(COLORS_KEY,JSON.stringify(colors));setColors();render()}
 
-.eyebrow.accent {
-  color: var(--urgent);
-}
+function updateSummary(){['urgent','normal','low'].forEach(priority=>{$(`#${priority}Count`).textContent=state.tasks.filter(t=>t.priority===priority).length});const urgent=state.tasks.filter(t=>t.priority==='urgent').length;$('#focusMessage').textContent=urgent?`${urgent} urgent ${urgent===1?'task needs':'tasks need'} your attention.`:state.tasks.length?'You are on top of your week.':'Start by adding a task to your week.'}
 
-.summary-card,
-.mini-note {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 18px;
-  padding: 18px 16px;
-  margin-top: 28px;
-}
+function render(){const week=dates();$('#weekRange').textContent=`${week[0].date.toLocaleDateString(undefined,{month:'short',day:'numeric'})} – ${week[6].date.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}`;const today=new Date().toDateString();grid.innerHTML=week.map(({name,date})=>{const tasks=state.tasks.filter(t=>t.day===name);return `<article class="day-column ${date.toDateString()===today?'today':''}" data-day="${name}"><header class="day-header"><span class="day-name">${name}</span><span class="day-date">${date.getDate()}</span></header><div class="task-list">${tasks.length?tasks.map(task=>`<div class="task-card ${task.priority}" draggable="true" data-id="${esc(task.id)}" title="Click to edit"><div class="task-meta"><span class="task-priority-pill">${task.priority}</span><button class="task-delete" type="button" data-delete="${esc(task.id)}" aria-label="Delete ${esc(task.title)}">&times;</button></div><div class="task-title">${esc(task.title)}</div></div>`).join(''):'<div class="empty-slot">Drop tasks here</div>'}</div><button class="add-task" type="button" data-add="${name}">+ Add task</button></article>`}).join('');notes.value=state.notes;updateSummary();bindDragAndDrop()}
 
-.label {
-  margin: 0 0 14px;
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.7;
-}
+function openTask(day,task){$('#taskDay').value=day;$('#taskId').value=task?.id||'';$('#taskTitle').value=task?.title||'';$('#taskPriority').value=task?.priority||'normal';$('#dialogTitle').textContent=task?'Edit task':'Add task';dialog.showModal();$('#taskTitle').focus()}
 
-.summary-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 14px;
-}
+function bindDragAndDrop(){grid.querySelectorAll('.task-card').forEach(card=>{card.addEventListener('dragstart',e=>{card.classList.add('dragging');e.dataTransfer.setData('text/plain',card.dataset.id);e.dataTransfer.effectAllowed='move'});card.addEventListener('dragend',()=>card.classList.remove('dragging'))});grid.querySelectorAll('.day-column').forEach(column=>{column.addEventListener('dragover',e=>{e.preventDefault();column.classList.add('drag-over')});column.addEventListener('dragleave',e=>{if(!column.contains(e.relatedTarget))column.classList.remove('drag-over')});column.addEventListener('drop',e=>{e.preventDefault();column.classList.remove('drag-over');const task=state.tasks.find(t=>t.id===e.dataTransfer.getData('text/plain'));if(task&&task.day!==column.dataset.day){task.day=column.dataset.day;save();render()}})})}
 
-.summary-row:first-of-type {
-  margin-top: 0;
-}
+grid.addEventListener('click',e=>{const del=e.target.closest('[data-delete]');if(del){e.stopPropagation();state.tasks=state.tasks.filter(t=>t.id!==del.dataset.delete);save();render();return}const add=e.target.closest('[data-add]');if(add){openTask(add.dataset.add);return}const card=e.target.closest('[data-id]');if(card){const task=state.tasks.find(t=>t.id===card.dataset.id);if(task)openTask(task.day,task)}});
 
-.count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 42px;
-  height: 36px;
-  border-radius: 999px;
-  font-weight: 700;
-}
+form.addEventListener('submit',e=>{e.preventDefault();const id=$('#taskId').value;const task={id:id||crypto.randomUUID(),day:$('#taskDay').value,title:$('#taskTitle').value.trim(),priority:$('#taskPriority').value};if(id)state.tasks=state.tasks.map(t=>t.id===id?task:t);else state.tasks.push(task);save();render();dialog.close()});
 
-.count.urgent { background: rgba(217, 88, 82, 0.15); color: #ffb2ad; }
-.count.normal { background: rgba(217, 168, 59, 0.15); color: #f7d178; }
-.count.low { background: rgba(104, 165, 141, 0.15); color: #adf0d0; }
+$('#cancelTask').addEventListener('click',()=>dialog.close());$('#closeTask').addEventListener('click',()=>dialog.close());notes.addEventListener('input',()=>{state.notes=notes.value;save()});
 
-.meta {
-  margin-left: auto;
-  opacity: 0.8;
-}
+$$('.theme-btn').forEach(btn=>{btn.addEventListener('click',()=>{const isDark=btn.dataset.theme==='dark';document.body.classList.toggle('dark-mode',isDark);$$('.theme-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');localStorage.setItem('theme',isDark?'dark':'light')})});
 
-.mini-note {
-  color: rgba(255, 255, 255, 0.9);
-}
+const savedTheme=localStorage.getItem('theme')||'light';if(savedTheme==='dark'){document.body.classList.add('dark-mode');$('[data-theme="dark"]').classList.add('active')}else{$('[data-theme="light"]').classList.add('active')}
 
-.mini-note p:last-child {
-  margin: 0;
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.78);
-}
+$('#settingsToggle').addEventListener('click',()=>{$$('.color-input').forEach(input=>{const key=input.dataset.key;input.value=colors[key]});$$('.color-hex').forEach(hex=>{const key=hex.dataset.key;hex.value=colors[key]});colorDialog.showModal()});
 
-.main-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-}
+$$('.color-input').forEach(input=>{input.addEventListener('input',()=>{const key=input.dataset.key;colors[key]=input.value;$$('.color-hex').forEach(hex=>{if(hex.dataset.key===key)hex.value=input.value});setColors()})});
 
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: end;
-  gap: 20px;
-  padding: 8px 8px 0;
-}
+$('#resetColors').addEventListener('click',e=>{e.preventDefault();colors={...DEFAULT_COLORS};$$('.color-input').forEach(input=>{const key=input.dataset.key;input.value=colors[key]});$$('.color-hex').forEach(hex=>{const key=hex.dataset.key;hex.value=colors[key]});setColors()});
 
-.topbar h2 {
-  font-size: clamp(2.2rem, 3vw, 3.2rem);
-  line-height: 1.1;
-}
+colorForm.addEventListener('submit',e=>{e.preventDefault();saveColors();colorDialog.close()});
 
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  flex-wrap: wrap;
-}
+$('#closeColor').addEventListener('click',()=>colorDialog.close());
 
-.legend {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
+$('#todayButton').addEventListener('click',()=>$('.today')?.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'}));
 
-.legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.dot.urgent { background: var(--urgent); }
-.dot.normal { background: var(--normal); }
-.dot.low { background: var(--low); }
-
-.primary-button,
-.secondary-button,
-.close-button {
-  border: none;
-  border-radius: 12px;
-  transition: transform 0.15s ease, opacity 0.15s ease;
-}
-
-.primary-button {
-  background: var(--ink);
-  color: white;
-  padding: 12px 18px;
-  font-weight: 700;
-}
-
-.secondary-button {
-  background: #f7f5f2;
-  color: var(--ink);
-  padding: 12px 18px;
-  border: 1px solid var(--line);
-  font-weight: 600;
-}
-
-.primary-button:hover,
-.secondary-button:hover,
-.close-button:hover,
-.add-task:hover,
-.task-card:hover {
-  transform: translateY(-1px);
-}
-
-.planner {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(180px, 1fr));
-  gap: 16px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-}
-
-.day-column {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  min-height: 420px;
-  padding: 16px 14px 14px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.day-column.today {
-  border-color: rgba(31, 36, 48, 0.8);
-  box-shadow: 0 10px 20px rgba(32, 37, 42, 0.07);
-}
-
-.day-column.drag-over {
-  border-color: rgba(31, 36, 48, 0.5);
-  box-shadow: 0 0 0 4px rgba(31, 36, 48, 0.06);
-}
-
-.day-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 12px;
-  margin-bottom: 12px;
-}
-
-.day-name {
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-}
-
-.day-date {
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: 12px;
-  background: #f5f1eb;
-  font-weight: 700;
-}
-
-.today .day-date {
-  background: var(--ink);
-  color: white;
-}
-
-.task-list {
-  display: grid;
-  gap: 10px;
-}
-
-.task-card {
-  position: relative;
-  border-left: 5px solid;
-  border-radius: 14px;
-  padding: 12px 10px 10px 12px;
-  display: grid;
-  gap: 8px;
-  box-shadow: 0 8px 14px rgba(30, 35, 45, 0.04);
-  cursor: grab;
-}
-
-.task-card.dragging {
-  opacity: 0.5;
-}
-
-.task-card.urgent {
-  background: var(--urgent-soft);
-  border-left-color: var(--urgent);
-}
-
-.task-card.normal {
-  background: var(--normal-soft);
-  border-left-color: var(--normal);
-}
-
-.task-card.low {
-  background: var(--low-soft);
-  border-left-color: var(--low);
-}
-
-.task-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
-.task-priority-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 7px;
-  border-radius: 999px;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.task-card.urgent .task-priority-pill {
-  background: rgba(217, 88, 82, 0.12);
-  color: #b34741;
-}
-
-.task-card.normal .task-priority-pill {
-  background: rgba(217, 168, 59, 0.12);
-  color: #97711d;
-}
-
-.task-card.low .task-priority-pill {
-  background: rgba(104, 165, 141, 0.12);
-  color: #447b67;
-}
-
-.task-delete {
-  border: none;
-  background: rgba(27, 29, 32, 0.06);
-  color: var(--ink);
-  border-radius: 8px;
-  width: 26px;
-  height: 26px;
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.task-title {
-  line-height: 1.45;
-  font-weight: 600;
-  word-break: break-word;
-}
-
-.empty-slot {
-  border: 1px dashed rgba(27, 29, 32, 0.18);
-  border-radius: 12px;
-  color: rgba(27, 29, 32, 0.4);
-  display: grid;
-  place-items: center;
-  min-height: 72px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.add-task {
-  margin-top: 12px;
-  width: 100%;
-  border: 1px dashed rgba(27, 29, 32, 0.22);
-  background: transparent;
-  color: var(--muted);
-  border-radius: 12px;
-  padding: 11px 10px;
-  font-weight: 600;
-}
-
-.notes-panel {
-  background: rgba(255, 255, 255, 0.76);
-  border: 1px solid var(--line);
-  border-radius: 24px;
-  padding: 22px 20px 18px;
-  box-shadow: var(--shadow);
-}
-
-.notes-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.notes-header h3 {
-  font-size: clamp(1.3rem, 2vw, 1.8rem);
-}
-
-.saved-status {
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-textarea {
-  width: 100%;
-  min-height: 120px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  margin-top: 18px;
-  resize: vertical;
-  background: #fff;
-  padding: 15px 14px;
-  color: var(--ink);
-  outline: none;
-}
-
-textarea:focus,
-input:focus,
-select:focus {
-  border-color: rgba(27, 29, 32, 0.4);
-  box-shadow: 0 0 0 4px rgba(27, 29, 32, 0.06);
-}
-
-#taskDialog {
-  border: none;
-  border-radius: 22px;
-  padding: 0;
-  width: min(420px, calc(100vw - 30px));
-  box-shadow: 0 24px 60px rgba(17, 24, 39, 0.2);
-}
-
-#taskDialog::backdrop {
-  background: rgba(17, 24, 39, 0.45);
-}
-
-#taskForm {
-  padding: 22px 20px 20px;
-}
-
-.dialog-header {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 18px;
-}
-
-.close-button {
-  background: #f5f2ee;
-  color: var(--ink);
-  width: 34px;
-  height: 34px;
-  font-size: 1.7rem;
-  line-height: 1;
-}
-
-label {
-  display: block;
-  margin-top: 14px;
-  font-weight: 600;
-  font-size: 0.78rem;
-  color: var(--muted);
-}
-
-input,
-select {
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
-  color: var(--ink);
-  padding: 12px 13px;
-  margin-top: 8px;
-}
-
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-}
-
-@media (max-width: 1100px) {
-  .page-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    padding: 22px 18px;
-  }
-}
-
-@media (max-width: 720px) {
-  .page-shell {
-    padding: 16px;
-  }
-
-  .topbar {
-    align-items: start;
-    flex-direction: column;
-  }
-
-  .planner {
-    grid-template-columns: repeat(7, minmax(160px, 1fr));
-  }
-
-  .notes-header {
-    flex-direction: column;
-    align-items: start;
-  }
-}
+setColors();render();

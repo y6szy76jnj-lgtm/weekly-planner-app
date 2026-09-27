@@ -1,56 +1,86 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Plan your week, capture notes, and highlight urgent tasks." />
-  <title>Weekly Planner</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A weekly planner with notes, urgency tracking, drag-and-drop scheduling, and customizable colors.">
+  <title>WeekFlow Planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Libre+Baskerville:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main class="app-shell">
-    <header class="app-header">
-      <div>
-        <p class="eyebrow">Your week, at a glance</p>
-        <h1>Weekly planner</h1>
-        <p class="subtitle">Make space for what matters.</p>
+  <div class="page-shell">
+    <aside class="sidebar">
+      <p class="eyebrow">Planner</p><h1>WeekFlow</h1>
+      
+      <section class="theme-panel">
+        <div class="theme-toggle">
+          <p class="label">Theme</p>
+          <div class="theme-buttons">
+            <button class="theme-btn" data-theme="light" title="Light theme">☀️</button>
+            <button class="theme-btn" data-theme="dark" title="Dark theme">🌙</button>
+          </div>
+        </div>
+        
+        <button class="settings-toggle" id="settingsToggle" type="button" title="Customize colors">⚙️ Colors</button>
+      </section>
+      
+      <section class="summary-card"><p class="label">This week</p>
+        <div class="summary-row"><span class="count urgent" id="urgentCount">0</span><span>Urgent</span></div>
+        <div class="summary-row"><span class="count normal" id="normalCount">0</span><span>Normal</span></div>
+        <div class="summary-row"><span class="count low" id="lowCount">0</span><span>Low</span></div>
+      </section>
+      <section class="mini-note"><p class="label">Focus</p><p id="focusMessage">Keep your week clear and intentional.</p></section>
+    </aside>
+    <main class="main-panel">
+      <header class="topbar"><div><p class="eyebrow accent">Your week</p><h2 id="weekRange">This week</h2></div>
+        <div class="topbar-actions"><div class="legend"><span><i class="dot urgent"></i>Urgent</span><span><i class="dot normal"></i>Normal</span><span><i class="dot low"></i>Low</span></div><button class="primary-button" id="todayButton" type="button">Today</button></div>
+      </header>
+      <p class="board-hint">Drag a task to another day to reschedule it, or click a task to edit.</p>
+      <section class="planner" id="plannerGrid" aria-label="Weekly planner board"></section>
+      <section class="notes-panel"><div class="notes-header"><div><p class="eyebrow">Notes</p><h3>Weekly reflection</h3></div><span class="saved-status" id="savedStatus">Saved locally</span></div><textarea id="notes" aria-label="Weekly notes" placeholder="Jot down ideas, reminders, and goals for the week..."></textarea></section>
+    </main>
+  </div>
+
+  <dialog id="taskDialog"><form id="taskForm"><div class="dialog-header"><div><p class="eyebrow">Task</p><h3 id="dialogTitle">Add task</h3></div><button class="close-button" id="closeTask" type="button" aria-label="Close">×</button></div>
+    <label>Title<input id="taskTitle" maxlength="90" required placeholder="What needs to happen?"></label>
+    <label>Priority<select id="taskPriority"><option value="urgent">Urgent</option><option value="normal" selected>Normal</option><option value="low">Low</option></select></label>
+    <input type="hidden" id="taskDay"><input type="hidden" id="taskId">
+    <div class="dialog-actions"><button class="secondary-button" id="cancelTask" type="button">Cancel</button><button class="primary-button" type="submit">Save task</button></div>
+  </form></dialog>
+
+  <dialog id="colorDialog" class="color-dialog"><form id="colorForm"><div class="dialog-header"><div><p class="eyebrow">Customize</p><h3>Color scheme</h3></div><button class="close-button" id="closeColor" type="button">×</button></div>
+    <div class="color-grid">
+      <div class="color-input-group">
+        <label for="urgentColor">Urgent color</label>
+        <div class="color-input-wrapper">
+          <input type="color" id="urgentColor" class="color-input" data-key="urgent">
+          <input type="text" class="color-hex" readonly data-key="urgent" placeholder="#000000">
+        </div>
       </div>
-      <button class="today-button" id="todayButton" type="button">Jump to today</button>
-    </header>
-
-    <section class="toolbar" aria-label="Planner controls">
-      <div class="week-label"><span id="weekRange">This week</span><span class="saved-status" id="savedStatus">Saved locally</span></div>
-      <div class="legend" aria-label="Priority legend">
-        <span><i class="dot urgent"></i>Urgent</span>
-        <span><i class="dot normal"></i>Normal</span>
-        <span><i class="dot low"></i>Low</span>
+      <div class="color-input-group">
+        <label for="normalColor">Normal color</label>
+        <div class="color-input-wrapper">
+          <input type="color" id="normalColor" class="color-input" data-key="normal">
+          <input type="text" class="color-hex" readonly data-key="normal" placeholder="#000000">
+        </div>
       </div>
-    </section>
-
-    <section class="planner-grid" id="plannerGrid" aria-label="Weekly tasks"></section>
-
-    <section class="notes-panel">
-      <div class="notes-heading">
-        <div><p class="eyebrow">Keep in mind</p><h2>Weekly notes</h2></div>
-        <span class="notes-hint">Ideas, reminders, or a little encouragement</span>
+      <div class="color-input-group">
+        <label for="lowColor">Low color</label>
+        <div class="color-input-wrapper">
+          <input type="color" id="lowColor" class="color-input" data-key="low">
+          <input type="text" class="color-hex" readonly data-key="low" placeholder="#000000">
+        </div>
       </div>
-      <textarea id="notes" aria-label="Weekly notes" placeholder="What do you want to remember this week?"></textarea>
-    </section>
-  </main>
+    </div>
+    <div class="color-actions">
+      <button class="secondary-button" id="resetColors" type="button">Reset to default</button>
+      <button class="primary-button" type="submit">Done</button>
+    </div>
+  </form></dialog>
 
-  <dialog id="taskDialog">
-    <form method="dialog" id="taskForm">
-      <div class="dialog-header"><div><p class="eyebrow">Plan a task</p><h2 id="dialogTitle">Add task</h2></div><button class="icon-button" value="cancel" aria-label="Close">×</button></div>
-      <label>Task<input id="taskTitle" name="title" required maxlength="80" placeholder="What needs doing?" /></label>
-      <label>Priority<select id="taskPriority" name="priority"><option value="urgent">Urgent</option><option value="normal" selected>Normal</option><option value="low">Low</option></select></label>
-      <input type="hidden" id="taskDay" />
-      <input type="hidden" id="taskId" />
-      <div class="dialog-actions"><button class="secondary-button" value="cancel">Cancel</button><button class="primary-button" value="default">Save task</button></div>
-    </form>
-  </dialog>
   <script src="app.js"></script>
 </body>
 </html>
